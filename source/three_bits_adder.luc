@@ -1,0 +1,17 @@
+module three_bits_adder (
+    input x[3],
+    input y[3],
+    input cin,
+    output cout,
+    output s[3]
+  ) {
+full_adder fullAdder[3];
+  always {
+    fullAdder.x = x;
+    fullAdder.y = y;
+    fullAdder.cin[0] = cin;
+    s = fullAdder.s;
+    cout = fullAdder.cout[2];
+    fullAdder.cin[2:1] = fullAdder.cout[1:0];
+  }
+}

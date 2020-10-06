@@ -1,0 +1,54 @@
+module mhp (
+    input clk,  // clock
+    input rst,  // reset
+    output signal[3],
+    output led_sum[2],
+    input s,
+    input cout,
+    output result_indicator,
+    input mode,
+    input manual[3]
+  ) {
+  //register to store x, y , cin generated from either the automatic incrementer or user manual input
+  dff signal_register[3](#INIT(0), .clk(clk), .rst(rst));
+  //whether the the test is right so far
+  dff right_out_false(#INIT(1), .clk(clk), .rst(rst));
+  //register 
+  dff register[3](#INIT(0), .clk(clk), .rst(rst));
+  three_bits_adder threeBitsAdder;
+  counter slowClock(#SIZE(1), #DIV(26), .clk(clk), .rst(rst));
+  edge_detector slowClockEdge(#RISE(1), #FALL(0), .clk(clk));
+  full_adder fullAdder;
+  button_conditioner manual_input[3](.clk(clk));
+  always {
+  
+    manual_input.in = manual;
+    slowClockEdge.in = slowClock.value;
+    //build a 3-bit incrementor which will plus 1 for each cycle to generate test case of x , y , cin
+    threeBitsAdder.x = register.q;
+    threeBitsAdder.y = 8h01;
+    threeBitsAdder.cin = b0;
+    if(slowClockEdge.out == b1 ){
+    register.d = threeBitsAdder.s;
+  }
+    //chose between automatic mode and munual mode
+    //only update the test case when the test in the last cycle is passed
+    if (mode == b1 && right_out_false.q == 1){
+      signal_register.d = threeBitsAdder.s;
+    } else if (mode == b0 && right_out_false.q == 1){
+      signal_register.d = manual_input.out;
+    }
+    signal = signal_register.q;
+    //fullAdder will generate right result
+    fullAdder.x = signal_register.q[0];
+    fullAdder.y = signal_register.q[1];
+    fullAdder.cin = signal_register.q[2];   
+    led_sum[0] = fullAdder.s;
+    led_sum[1] = fullAdder.cout;
+    //compare the result from stripboard and the result from the fullAdder inside Architry
+    if (slowClockEdge.out == b1 & !(fullAdder.s == s & fullAdder.cout == cout)){
+      right_out_false.d = b0;
+    } 
+    //show true/false to an led
+    result_indicator = right_out_false.q;
+}
